@@ -50,7 +50,7 @@ tr.b td{color:var(--mut);font-style:italic}
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ls={g(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},s(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let days=ls.g('tt:days',{}),prof=ls.g('tt:prof',{name:'Jason Oosthuizen',company:'Coastal IT'});
+let days=ls.g('tt:days',{}),prof=ls.g('tt:prof',{name:'[Enter Name]',company:'Coastal IT'});
 const todayKey=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
 let sel=todayKey(),editing=false,switching=false,discard=false,downloads=null,otherAsk=false;
 const nowS=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
