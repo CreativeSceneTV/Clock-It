@@ -50,7 +50,7 @@ tr.b td{color:var(--mut);font-style:italic}
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ls={g(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},s(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let days=ls.g('tt:days',{}),prof=ls.g('tt:prof',{name:'[Enter Name]',company:'Coastal IT'});
+let days=ls.g('tt:days',{}),prof=ls.g('tt:prof',{name:'',company:''});
 const todayKey=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
 let sel=todayKey(),editing=false,switching=false,discard=false,downloads=null,otherAsk=false;
 const nowS=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
@@ -134,8 +134,8 @@ function render(){
   else if(!d){
     if(sel!==todayKey()){h+='<div class="card mut">No day recorded for this date.</div>'}
     else h+=`<div class="card"><div class="tn">Start your day</div>
-<label>Your name</label><input id="n" value="${esc(prof.name)}">
-<label>Company</label><input id="co" value="${esc(prof.company)}">
+<label>Your name</label><input id="n" placeholder="Enter Name">
+<label>Company</label><input id="co" placeholder="Company Name">
 <label>Title (optional)</label><input id="ti" placeholder="e.g. Client site support">
 <label>Description (optional)</label><textarea id="de" placeholder="What is today about?"></textarea>
 <label>First task (optional)</label><input id="t1" placeholder="General">
