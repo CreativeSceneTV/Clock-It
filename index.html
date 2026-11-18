@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clock-It</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f1f6ff;--card:#fff;--tx:#0f1b33;--mut:#5b6b8c;--bd:#d9e4f7;--ac:#1f6feb;--acx:#fff;--acs:#e7f0ff;--red:#d92d20;--grn:#12805c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0a1220;--card:#111c30;--tx:#e8eefb;--mut:#8fa3c7;--bd:#223455;--ac:#5a9bff;--acx:#06122a;--acs:#182b4d;--red:#f97066;--grn:#4ade9d}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0a1220;--card:#111c30;--tx:#e8eefb;--mut:#8fa3c7;--bd:#223455;--ac:#5a9bff;--acx:#06122a;--acs:#182b4d;--red:#f97066;--grn:#4ade9d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{max-width:640px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+h1{font-size:20px;margin:0;display:flex;align-items:center;gap:10px}
+h1 i{font-style:normal;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--ac);color:var(--acx);font-size:18px}
+th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.hero{background:linear-gradient(135deg,#1558d6,#3d8bff);color:#fff;border:0}
+.hero .mut{color:#d6e6ff}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,60,140,.06),0 8px 24px rgba(20,60,140,.07)}
+.mut{color:var(--mut);font-size:13px}
+.big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-1px;margin:4px 0}
+.mid{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.tn{font-size:17px;font-weight:600}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:9px 10px}
+textarea{resize:vertical;min-height:56px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--ac);border-color:var(--ac)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.row>*{flex:1 1 140px}
+button{font:inherit;font-weight:600;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:10px 14px;cursor:pointer;transition:background .15s,filter .15s}
+button.p{background:var(--ac);color:var(--acx);border-color:var(--ac)}
+button.d{color:var(--red);border-color:var(--red)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:hover:not(:disabled){background:var(--acs)}
+button.p:hover:not(:disabled){background:var(--ac);filter:brightness(1.1)}
+button.d:hover:not(:disabled){background:transparent;opacity:.8}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.r{text-align:right;white-space:nowrap}
+tr.b td{color:var(--mut);font-style:italic}
+.err{color:var(--red);min-height:18px;font-size:13px;margin-top:8px}
+.tot{font-size:22px;font-weight:700}
+.wrap{overflow-x:auto}
+#slip{display:none}
+@media print{#app{display:none}#slip{display:block;color:#000;background:#fff;padding:20px;font:13px/1.5 Arial,sans-serif}#slip table{width:100%}#slip td,#slip th{border-bottom:1px solid #999;padding:5px 3px}}
+</style></head>
+<body><div id="app"></div><div id="slip"></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],pad=n=>String(n).padStart(2,'0');
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ls={g(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},s(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let days=ls.g('tt:days',{}),prof=ls.g('tt:prof',{name:'Jason Oosthuizen',company:'Coastal IT'});
+const todayKey=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+let sel=todayKey(),editing=false,switching=false,discard=false,downloads=null,otherAsk=false;
+const nowS=()=>{const d=new Date();return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
+const f60=s=>Math.floor(s/60)*60;
+const hm=s=>pad(Math.floor(s/3600)%24)+':'+pad(Math.floor(s%3600/60))+':'+pad(Math.floor(s%60));
+const hms=s=>pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(Math.floor(s%60));
+const dur=s=>hms(Math.max(0,s));
+const parse=v=>{const m=/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(v||'');return m?(+m[1]*3600+ +m[2]*60+(+m[3]||0)):null};
+const save=()=>ls.s('tt:days',days);
+const kp=(old,v)=>{const p=parse(v);return p!==null&&hm(old)===v?old:p};
+const getAl=()=>ls.g('tt:allow',{lunch:3600,tea1:900,tea2:900});
+const BK=[['lunch','Lunch'],['tea1','Tea time 1'],['tea2','Tea time 2'],['other','Other break']],BL=Object.fromEntries(BK);
+const brLabel=k=>k.kind==='other'&&k.label?'Break: '+k.label:(BL[k.kind]||'Break');
+const used=(d,k,n)=>d.breaks.filter(b=>b.kind===k).reduce((s,b)=>s+(b.end==null?n:b.end)-b.start,0);
+const breaksCard=d=>{const ob=d.breaks.find(b=>b.end==null);return `<div class="card"><div class="tn">Breaks</div>${BK.map(([k,l])=>{const open=ob&&(ob.kind===k||(!BL[ob.kind]&&k==='other'));return `<div class="row" style="align-items:center;margin-top:8px"><div>${open&&k==='other'&&ob.label?'Other: '+esc(ob.label):l}<div class="mut" id="bk-${k}"></div></div><button data-a="brk" data-k="${k}"${ob&&!open?' disabled':''}>${open?'Stop':'Start'}</button></div>`}).join('')}${otherAsk&&!ob?`<div class="row"><input id="ol" placeholder="What are you doing? e.g. bathroom, PC down, PC maintenance" style="flex:3 1 220px"><button class="p" data-a="doother">Start break</button><button data-a="cancelother">Cancel</button></div>`:''}</div>`};
+const setErr=m=>{const e=$('#err');if(e)e.textContent=m};
+const net=(d,a,b)=>{let t=b-a;for(const k of d.breaks){const e=k.end==null?b:k.end;t-=Math.max(0,Math.min(b,e)-Math.max(a,k.start))}return Math.max(0,t)};
+const bt=(d,n)=>d.breaks.reduce((s,k)=>s+Math.max(0,(k.end==null?(d.end==null?n:d.end):k.end)-k.start),0);
+const tEnd=(d,i,n)=>i<d.tasks.length-1?d.tasks[i+1].start:(d.end==null?n:d.end);
+const niceDate=k=>new Date(k+'T00:00:00').toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function rows(d,n){
+  const last=d.tasks.length-1;
+  let h=d.tasks.map((t,i)=>{const e=tEnd(d,i,n);return `<tr><td>${esc(t.name)}</td><td class="r">${hm(t.start)} - ${d.end==null&&i===last?'now':hm(e)}</td><td class="r">${dur(net(d,t.start,e))}</td></tr>`}).join('');
+  h+=d.breaks.map(k=>`<tr class="b"><td>${esc(brLabel(k))}</td><td class="r">${hm(k.start)} - ${k.end==null?'now':hm(k.end)}</td><td class="r">${dur((k.end==null?n:k.end)-k.start)}</td></tr>`).join('');
+  return h;
+}
+const applyTheme=()=>{const t=ls.g('tt:theme',null);if(t)document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme};
+const isDark=()=>{const t=document.documentElement.dataset.theme;return t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches};
+const themeLabel=()=>isDark()?'Light mode':'Dark mode';
+const shortDate=k=>new Date(k+'T00:00:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const ascii=s=>String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+let rng=ls.g('tt:range',null),backSel=null;
+if(!rng||!rng.from||!rng.to){const n=new Date();rng={from:ymd(new Date(n.getFullYear(),n.getMonth(),1)),to:ymd(n)}}
+const periodName=()=>rng.from===rng.to?shortDate(rng.from):shortDate(rng.from)+' to '+shortDate(rng.to);
+function periodData(){const ds=Object.values(days).filter(d=>d.end!=null&&d.date>=rng.from&&d.date<=rng.to).sort((a,b)=>a.date<b.date?-1:1);let tot=0,br=0;const tk={};
+  ds.forEach(d=>{tot+=net(d,d.start,d.end);br+=bt(d,0);d.tasks.forEach((t,i)=>{const e=tEnd(d,i,d.end),k=t.name.trim().toLowerCase();(tk[k]=tk[k]||{name:t.name,s:0}).s+=net(d,t.start,e)})});
+  return {ds,tot,br,tasks:Object.values(tk).sort((a,b)=>b.s-a.s)}}
+function setPreset(w){const n=new Date();rng=w==='last'?{from:ymd(new Date(n.getFullYear(),n.getMonth()-1,1)),to:ymd(new Date(n.getFullYear(),n.getMonth(),0))}:{from:ymd(new Date(n.getFullYear(),n.getMonth(),1)),to:ymd(n)};ls.s('tt:range',rng);render()}
+function purge(){const c=new Date();c.setMonth(c.getMonth()-3);const ck=ymd(c);let ch=false;for(const k of Object.keys(days))if(k<ck){delete days[k];ch=true}if(ch)save()}
+let lastToday=todayKey();
+setInterval(()=>{const t=todayKey();if(t===lastToday)return;const old=lastToday,p=days[old];lastToday=t;if(sel===old&&(!p||p.end!=null)){sel=t;purge();render()}},30000);
+function periodView(){const m=periodData();
+  const pick=`<div class="card"><div class="tn">Period slip</div><div class="row"><div><label>From</label><input type="date" id="rf" value="${rng.from}"></div><div><label>To</label><input type="date" id="rt" value="${rng.to}"></div></div><div class="row"><button data-a="thismonth">This month</button><button data-a="lastmonth">Last month</button></div></div>`;
+  if(!m.ds.length)return pick+'<div class="card mut">No finished days saved between these dates.</div>';
+  return pick+`<div class="card hero"><div class="tn">${periodName()}</div><div class="mut">${m.ds.length} day${m.ds.length>1?'s':''} &middot; breaks ${dur(m.br)}</div><div class="big">${dur(m.tot)}</div><div class="mut">Total worked in this period</div></div>
+<div class="card wrap"><table><tr><th>Date</th><th class="r">Time</th><th class="r">Worked</th></tr>${m.ds.map(d=>`<tr><td>${shortDate(d.date)}<div class="mut">${esc(d.title)}</div></td><td class="r">${hm(d.start)} - ${hm(d.end)}</td><td class="r">${dur(net(d,d.start,d.end))}</td></tr>`).join('')}<tr><td><b>Period total</b></td><td></td><td class="r"><b>${dur(m.tot)}</b></td></tr></table></div>
+<div class="card wrap"><div class="tn">Hours by task</div><table>${m.tasks.map(t=>`<tr><td>${esc(t.name)}</td><td class="r">${dur(t.s)}</td></tr>`).join('')}</table></div>
+<div class="err" id="err"></div><div class="row"><button class="p" data-a="pdfm">Download PDF slip</button><button data-a="printm">Print slip</button></div>`}
+function periodSlipHtml(){const m=periodData();if(!m.ds.length)return '';const d0=m.ds[m.ds.length-1];
+  return `<h2 style="margin:0">Time Slip</h2><div>${esc(d0.company)} &middot; ${esc(d0.name)}</div><div>${periodName()}</div><hr>
+<table><tr><th>Date</th><th>Time</th><th>Breaks</th><th>Worked</th></tr>${m.ds.map(d=>`<tr><td>${shortDate(d.date)}</td><td>${hm(d.start)} - ${hm(d.end)}</td><td>${dur(bt(d,0))}</td><td>${dur(net(d,d.start,d.end))}</td></tr>`).join('')}<tr><td colspan="3"><b>Period total</b></td><td><b>${dur(m.tot)}</b></td></tr></table>
+<h3>Hours by task</h3><table>${m.tasks.map(t=>`<tr><td>${esc(t.name)}</td><td>${dur(t.s)}</td></tr>`).join('')}</table>
+<p>Days worked: ${m.ds.length} &middot; Total breaks: ${dur(m.br)}</p><p style="margin-top:40px">Signature: ______________________ &nbsp; Date: ____________</p><p style="font-size:11px">Generated: ${new Date().toLocaleString('en-ZA')}</p>`}
+function pdfPeriod(){
+  const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw {code:'nolib'};
+  const m=periodData(),d0=m.ds[m.ds.length-1];if(!d0)throw {code:'empty'};
+  const p=new J({unit:'mm',format:'a4'});let y=20;const L=15;
+  const T=(t,x,sz,b)=>{p.setFont('helvetica',b?'bold':'normal');p.setFontSize(sz||10);p.text(ascii(t),x,y)};
+  const nl=k=>{y+=k;if(y>275){p.addPage();y=20}};
+  T('TIME SLIP',L,18,1);nl(8);T((d0.company||'')+'  |  '+(d0.name||''),L,11);nl(6);T(periodName(),L,10);nl(4);p.line(L,y,195,y);nl(8);
+  T('Total worked: '+dur(m.tot),L,13,1);nl(6);T('Days worked: '+m.ds.length+'     Breaks: '+dur(m.br),L,10);nl(9);
+  T('Date',L,10,1);T('Time',68,10,1);T('Breaks',130,10,1);T('Worked',165,10,1);nl(2);p.line(L,y,195,y);nl(6);
+  m.ds.forEach(d=>{T(shortDate(d.date),L,10);T(hm(d.start)+' - '+hm(d.end),68,10);T(dur(bt(d,0)),130,10);T(dur(net(d,d.start,d.end)),165,10);nl(6)});
+  p.line(L,y-3,195,y-3);nl(3);T('Period total',L,11,1);T(dur(m.tot),165,11,1);nl(12);
+  T('Hours by task',L,11,1);nl(7);
+  m.tasks.forEach(t=>{const w=p.splitTextToSize(ascii(t.name),140);T(dur(t.s),165,10);w.forEach(ln=>{T(ln,L,10);nl(5)});nl(1)});
+  nl(14);p.line(L,y,90,y);p.line(115,y,170,y);nl(5);T('Signature',L,9);T('Date',115,9);nl(10);
+  T('Generated: '+new Date().toLocaleString('en-ZA'),L,8);
+  return p.output('blob');
+}
+function header(){
+  const per=sel.startsWith('m:'),keys=[...new Set([...Object.keys(days),todayKey()])].sort().reverse();
+  const right=per?`<button data-a="back" style="padding:8px 12px">Back to days</button>`:`<button data-a="range" style="padding:8px 12px">Period slip</button><select id="hist" style="width:auto">${keys.map(k=>`<option value="${k}"${k===sel?' selected':''}>${k===todayKey()?'Today - ':''}${shortDate(k)}</option>`).join('')}</select>`;
+  return `<header><h1><i>&#9201;</i>Clock-It</h1><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button data-a="theme" style="padding:8px 12px">${themeLabel()}</button>${right}</div></header>`;
+}
+function render(){
+  const d=days[sel],n=nowS();let h=header();
+  if(sel.startsWith('m:')){h+=periodView()}
+  else if(!d){
+    if(sel!==todayKey()){h+='<div class="card mut">No day recorded for this date.</div>'}
+    else h+=`<div class="card"><div class="tn">Start your day</div>
+<label>Your name</label><input id="n" value="${esc(prof.name)}">
+<label>Company</label><input id="co" value="${esc(prof.company)}">
+<label>Title (optional)</label><input id="ti" placeholder="e.g. Client site support">
+<label>Description (optional)</label><textarea id="de" placeholder="What is today about?"></textarea>
+<label>First task (optional)</label><input id="t1" placeholder="General">
+<label>Start time</label><input id="st" type="time" step="1" value="${hm(f60(n))}">
+<label>Break allowances in minutes: lunch, tea time 1, tea time 2</label><div class="row">${(()=>{const A=getAl();return [A.lunch,A.tea1,A.tea2].map((v,i)=>`<input id="al${i}" type="number" min="0" value="${v/60}">`).join('')})()}</div>
+<div class="err" id="err"></div><div class="row"><button class="p" data-a="start">Start day</button></div></div>`;
+  }else if(d.end==null){
+    const ob=d.breaks.some(k=>k.end==null),lt=d.tasks[d.tasks.length-1];
+    h+=`<div class="card hero"><div class="tn">${esc(d.title)}</div><div class="mut">${esc(d.desc)}</div>
+<div class="big" id="dc"></div><div class="mut">Day ${hm(d.start)} - now &middot; <span id="brk"></span></div></div>
+<div class="card"><div class="mut">Current task</div><div class="tn">${esc(lt.name)}</div><div class="mid" id="tc"></div>
+${switching?`<label>New task name (optional)</label><input id="sn" placeholder="Task ${d.tasks.length+1}" autofocus><div class="row"><button class="p" data-a="doswitch">Switch</button><button data-a="cancelsw">Cancel</button></div>`:
+`<div class="row"><button class="p" data-a="switch"${ob?' disabled':''}>Switch task</button></div>`}
+<div class="err" id="err"></div></div>
+${breaksCard(d)}
+<div class="card wrap"><table>${rows(d,n)}</table></div>
+<button class="d" data-a="stop" style="width:100%">Stop day</button>`;
+  }else if(editing){
+    h+=`<div class="card"><div class="tn">Edit day</div>
+<div class="row"><div><label>Day start</label><input type="time" step="1" id="es" value="${hm(d.start)}"></div><div><label>Day end</label><input type="time" step="1" id="ee" value="${hm(d.end)}"></div></div>
+<label>Tasks (each task ends when the next starts)</label>
+${d.tasks.map((t,i)=>`<div class="row" style="margin-top:6px"><input class="en" value="${esc(t.name)}" style="flex:2 1 160px"><input class="est" type="time" step="1" value="${hm(t.start)}"${i?'':' disabled'} style="flex:1 1 100px"></div>`).join('')}
+${d.breaks.length?'<label>Breaks</label>':''}
+${d.breaks.map(k=>`<div class="row" style="margin-top:6px;align-items:center"><input class="bs" type="time" step="1" value="${hm(k.start)}"><input class="be" type="time" step="1" value="${hm(k.end)}"><label style="margin:0;flex:0 0 auto"><input class="bx" type="checkbox" style="width:auto"> remove</label></div>`).join('')}
+<div class="err" id="err"></div><div class="row"><button class="p" data-a="saveedit">Save changes</button><button data-a="canceledit">Cancel</button></div></div>`;
+  }else{
+    h+=`<div class="card hero"><div class="tn">${esc(d.title)}</div><div class="mut">${esc(d.desc)}</div>
+<div class="big">${hm(d.start)} - ${hm(d.end)}</div>
+<div class="tot">${dur(net(d,d.start,d.end))} worked</div><div class="mut">Breaks ${dur(bt(d,n))} &middot; ${niceDate(d.date)}</div></div>
+<div class="card wrap"><table>${rows(d,n)}</table></div>
+<div class="err" id="err"></div>
+<div class="row"><button class="p" data-a="pdf">Download PDF slip</button><button data-a="print">Print slip</button><button data-a="edit">Edit</button><button class="d" data-a="discard">${discard?'Click again to confirm':'Discard day'}</button></div>`;
+  }
+  h+='<p class="mut" style="text-align:center">Saved only in this browser. Days are removed after 3 months.</p>';
+  $('#app').innerHTML=h;
+  $('#slip').innerHTML=sel.startsWith('m:')?periodSlipHtml():(d?slipHtml(d):'');
+  tick();
+}
+function tick(){
+  const d=days[sel];if(!d||d.end!=null)return;const n=nowS();
+  const a=$('#dc'),b=$('#tc'),c=$('#brk');
+  if(a)a.textContent=hms(net(d,d.start,n));
+  if(b)b.textContent=hms(net(d,d.tasks[d.tasks.length-1].start,n));
+  if(c)c.textContent=d.breaks.some(k=>k.end==null)?'On break':'Breaks '+dur(bt(d,n));
+  for(const [k] of BK){const e=$('#bk-'+k);if(!e)continue;const u=used(d,k,n);if(k==='other')e.textContent='Used '+hms(u);else{const r=((d.allow&&d.allow[k])||0)-u;e.textContent=r>=0?hms(r)+' left':'+'+hms(-r)+' over';e.style.color=r<0?'var(--red)':''}}
+}
+setInterval(tick,1000);
+
+function slipHtml(d){
+  if(d.end==null)return '';
+  return `<h2 style="margin:0">Daily Time Slip</h2><div>${esc(d.company)} &middot; ${esc(d.name)}</div><div>${niceDate(d.date)}</div><hr>
+<h3 style="margin:6px 0">${esc(d.title)}</h3><div>${esc(d.desc)}</div>
+<p><b>Day: ${hm(d.start)} - ${hm(d.end)}</b><br>Breaks: ${dur(bt(d,0))}<br><b>Total worked: ${dur(net(d,d.start,d.end))}</b></p>
+<table><tr><th>Task</th><th>Time</th><th>Duration</th></tr>${rows(d,d.end)}</table>
+<p style="margin-top:40px">Signature: ______________________ &nbsp; Date: ____________</p>
+<p style="font-size:11px">Generated: ${new Date().toLocaleString('en-ZA')}</p>`;
+}
+function pdf(d){
+  const J=window.jspdf&&window.jspdf.jsPDF;if(!J)throw {code:'nolib'};
+  const p=new J({unit:'mm',format:'a4'});let y=20;const L=15;
+  const T=(t,x,sz,b)=>{p.setFont('helvetica',b?'bold':'normal');p.setFontSize(sz||10);p.text(ascii(t),x,y)};
+  const nl=k=>{y+=k;if(y>275){p.addPage();y=20}};
+  T('DAILY TIME SLIP',L,18,1);nl(8);T(d.company+'  |  '+d.name,L,11);nl(6);T(niceDate(d.date),L,10);nl(4);p.line(L,y,195,y);nl(8);
+  T(d.title,L,13,1);nl(6);
+  for(const ln of p.splitTextToSize(d.desc||'',180)){T(ln,L,10);nl(5)}
+  nl(3);T('Day: '+hm(d.start)+' - '+hm(d.end),L,12,1);nl(6);
+  T('Breaks: '+dur(bt(d,0)),L,10);nl(6);T('Total worked: '+dur(net(d,d.start,d.end)),L,12,1);nl(9);
+  T('Task',L,10,1);T('Time',115,10,1);T('Duration',165,10,1);nl(2);p.line(L,y,195,y);nl(6);
+  d.tasks.forEach((t,i)=>{const e=tEnd(d,i,d.end),w=p.splitTextToSize(t.name,95);
+    T(hm(t.start)+' - '+hm(e),115,10);T(dur(net(d,t.start,e)),165,10);
+    for(const ln of w){T(ln,L,10);nl(5)}nl(1)});
+  d.breaks.forEach(k=>{p.setTextColor(110);T(brLabel(k),L,10);T(hm(k.start)+' - '+hm(k.end),115,10);T(dur(k.end-k.start),165,10);p.setTextColor(0);nl(6)});
+  nl(14);p.line(L,y,90,y);p.line(115,y,170,y);nl(5);T('Signature',L,9);T('Date',115,9);nl(10);
+  T('Generated: '+new Date().toLocaleString('en-ZA'),L,8);
+  return p.output('blob');
+}
+async function saveBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+async function savePdf(make,name){
+  try{await saveBlob(make(),name)}catch(e){
+    if(e&&e.code==='declined')return;
+    setErr(e&&(e.code==='nolib'||e.code==='nodl')?'Saving a PDF is not available here. Use Print and choose Save as PDF.':'Could not save the PDF. Try Print instead.');
+  }
+}
+const doPdf=d=>savePdf(()=>pdf(d),'time-slip-'+d.date+'.pdf');
+const doPdfP=()=>savePdf(()=>pdfPeriod(),'time-slip-'+rng.from+'_to_'+rng.to+'.pdf');
+function start(){
+  const ti=$('#ti').value.trim()||'Work day',st=parse($('#st').value);
+  if(st===null)return setErr('Enter your start time, e.g. 08:01.');
+  if(st>nowS())return setErr('Start time is in the future.');
+  prof={name:$('#n').value.trim(),company:$('#co').value.trim()};ls.s('tt:prof',prof);
+  const mn=i=>Math.max(0,Math.round((parseFloat($('#al'+i).value)||0)*60));const allow={lunch:mn(0),tea1:mn(1),tea2:mn(2)};ls.s('tt:allow',allow);
+  days[sel]={date:sel,title:ti,desc:$('#de').value.trim(),start:st,end:null,tasks:[{name:$('#t1').value.trim()||'General',start:st}],breaks:[],allow,name:prof.name,company:prof.company};
+  save();render();
+}
+function saveEdit(){
+  const d=days[sel],s=kp(d.start,$('#es').value),e=kp(d.end,$('#ee').value);
+  if(s===null||e===null||e<s)return setErr('Check the day start and end times.');
+  const ts=$$('.est').map((x,i)=>i?kp(d.tasks[i].start,x.value):s),nm=$$('.en').map(x=>x.value.trim()||'General');
+  for(let i=0;i<ts.length;i++)if(ts[i]===null||ts[i]<s||ts[i]>e||(i&&ts[i]<ts[i-1]))return setErr('Task times must be in order within the day.');
+  const bs=$$('.bs'),be=$$('.be'),bx=$$('.bx'),nb=[];
+  for(let i=0;i<bs.length;i++){if(bx[i].checked)continue;const a=kp(d.breaks[i].start,bs[i].value),b=kp(d.breaks[i].end,be[i].value);
+    if(a===null||b===null||a<s||b<a||b>e)return setErr('Break times must sit inside the day, start before end.');nb.push({start:a,end:b})}
+  d.start=s;d.end=e;d.tasks.forEach((t,i)=>{t.start=ts[i];t.name=nm[i]});d.breaks=nb;
+  editing=false;save();render();
+}
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,d=days[sel];
+  if(a!=='discard'&&discard){discard=false}
+  if(a==='theme'){ls.s('tt:theme',isDark()?'light':'dark');applyTheme();b.textContent=themeLabel();return}
+  if(a==='start')start();
+  else if(a==='switch'){switching=true;render();const i=$('#sn');if(i)i.focus()}
+  else if(a==='cancelsw'){switching=false;render()}
+  else if(a==='doswitch'){
+    const nm=$('#sn').value.trim()||('Task '+(d.tasks.length+1));
+    const t=nowS(),last=d.tasks[d.tasks.length-1];
+    if(t<=last.start)last.name=nm;else d.tasks.push({name:nm,start:t});
+    switching=false;save();render();
+  }else if(a==='brk'){
+    const ob=d.breaks.find(k=>k.end==null),t=nowS();
+    if(ob)ob.end=t;else if(b.dataset.k==='other'){otherAsk=true;render();const i=$('#ol');if(i)i.focus();return}else d.breaks.push({start:t,end:null,kind:b.dataset.k});
+    save();render();
+  }else if(a==='doother'){d.breaks.push({start:nowS(),end:null,kind:'other',label:$('#ol').value.trim()});otherAsk=false;save();render()}
+  else if(a==='cancelother'){otherAsk=false;render()}
+  else if(a==='stop'){
+    d.end=nowS();d.breaks.forEach(k=>{if(k.end==null)k.end=d.end});
+    switching=false;save();render();
+  }else if(a==='edit'){editing=true;render()}
+  else if(a==='canceledit'){editing=false;render()}
+  else if(a==='saveedit')saveEdit();
+  else if(a==='pdf')doPdf(d);
+  else if(a==='pdfm')doPdfP();
+  else if(a==='range'){backSel=sel;sel='m:';editing=false;switching=false;discard=false;render()}
+  else if(a==='back'){sel=(backSel&&backSel!=='m:')?backSel:todayKey();render()}
+  else if(a==='thismonth')setPreset('this');
+  else if(a==='lastmonth')setPreset('last');
+  else if(a==='printm')window.print();
+  else if(a==='print')window.print();
+  else if(a==='discard'){
+    if(!discard){discard=true;render()}else{delete days[sel];discard=false;save();render()}
+  }
+});
+document.addEventListener('change',ev=>{if(ev.target.id==='rf'||ev.target.id==='rt'){const f=$('#rf').value,t=$('#rt').value;if(f&&t){rng={from:f<=t?f:t,to:f<=t?t:f};ls.s('tt:range',rng)}render();return}if(ev.target.id==='hist'){sel=ev.target.value;editing=false;switching=false;discard=false;render()}});
+document.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&(ev.target.id==='sn'||ev.target.id==='ol')){const b=$(ev.target.id==='sn'?'[data-a="doswitch"]':'[data-a="doother"]');if(b)b.click()}});
+purge();applyTheme();render();
+</script></body></html>

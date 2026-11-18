@@ -1,0 +1,14 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Netlify
+.netlify/
+
+# Dependencies and logs (not used, kept out just in case)
+node_modules/
+*.log
